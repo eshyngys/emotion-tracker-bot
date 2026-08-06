@@ -1,0 +1,17 @@
+{
+  "name": "emotion-tracker-bot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Telegram bot that asks about your emotions at a random time each day and produces a weekly markdown digest for reflection.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail",
+    "kv:create": "wrangler kv namespace create EMOTIONS_KV"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "wrangler": "^3.78.0",
+    "@cloudflare/workers-types": "^4.20240925.0"
+  }
+}
