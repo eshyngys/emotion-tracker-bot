@@ -35,6 +35,20 @@ export default {
       return new Response("ok");
     }
 
+    // Temporary diagnostic — reveals presence/length only, never the actual secret values.
+    // Remove once the webhook/secret wiring is confirmed working.
+    if (url.pathname === "/debug/env-check") {
+      return new Response(
+        JSON.stringify({
+          hasToken: Boolean(env.TELEGRAM_BOT_TOKEN),
+          tokenLength: env.TELEGRAM_BOT_TOKEN?.length ?? 0,
+          hasWebhookSecret: Boolean(env.WEBHOOK_SECRET),
+          webhookSecretLength: env.WEBHOOK_SECRET?.length ?? 0,
+        }),
+        { headers: { "content-type": "application/json" } }
+      );
+    }
+
     if (url.pathname === "/webhook" && request.method === "POST") {
       const secret = request.headers.get("x-telegram-bot-api-secret-token");
       if (secret !== env.WEBHOOK_SECRET) {
