@@ -5,18 +5,42 @@ import {
   clearSubscriberChatId,
   getAnswer,
   getAwaiting,
+  getCachedFileId,
   getDayState,
   getSubscriberChatId,
   saveAnswer,
   setAwaiting,
+  setCachedFileId,
   setDayState,
   setSubscriberChatId,
 } from "./storage";
-import { sendDocument, sendMessage } from "./telegram";
+import { sendDocument, sendMessage, sendPhotoByFileId, sendPhotoByUrl } from "./telegram";
 import type { Answer, Env, TelegramUpdate } from "./types";
 
 const QUESTION_1_TEXT = "👋 Как ты сейчас?\n\n1️⃣ Какую эмоцию ты сейчас испытываешь? (коротко)";
 const QUESTION_2_TEXT = "2️⃣ А почему ты сейчас испытываешь такую эмоцию? (коротко)";
+
+// Illustrative cards from the design handoff, hosted straight from the public repo — Telegram
+// fetches the URL once and we cache the returned file_id, so it's only ever fetched once.
+const GITHUB_RAW_BASE = "https://raw.githubusercontent.com/eshyngys/emotion-tracker-bot/main/assets/cards";
+const CARD_URLS = {
+  "card-1": `${GITHUB_RAW_BASE}/card-1-emotion.png`,
+  "card-2": `${GITHUB_RAW_BASE}/card-2-reason.png`,
+  "card-3": `${GITHUB_RAW_BASE}/card-3-report.png`,
+} as const;
+type CardKey = keyof typeof CARD_URLS;
+
+async function sendCard(env: Env, chatId: number | string, card: CardKey, caption: string): Promise<void> {
+  const cachedFileId = await getCachedFileId(env, card);
+  if (cachedFileId) {
+    await sendPhotoByFileId(env, chatId, cachedFileId, caption);
+    return;
+  }
+  const fileId = await sendPhotoByUrl(env, chatId, CARD_URLS[card], caption);
+  if (fileId) {
+    await setCachedFileId(env, card, fileId);
+  }
+}
 
 const WELCOME_TEXT =
   "Привет!\n\n" +
@@ -107,7 +131,7 @@ async function handleUpdate(update: TelegramUpdate, env: Env): Promise<void> {
   if (awaiting?.step === 1) {
     // Got the emotion — now ask why, and remember the emotion for step 2.
     await setAwaiting(env, chatId, { dateKey: awaiting.dateKey, step: 2, emotion: text });
-    await sendMessage(env, chatId, QUESTION_2_TEXT);
+    await sendCard(env, chatId, "card-2", QUESTION_2_TEXT);
     return;
   }
 
@@ -152,7 +176,7 @@ async function maybeSendDailyQuestion(env: Env, force: boolean): Promise<void> {
   const subscriber = await getSubscriberChatId(env);
   if (!subscriber) return; // nobody has /start'ed the bot yet
 
-  await sendMessage(env, subscriber, QUESTION_1_TEXT);
+  await sendCard(env, subscriber, "card-1", QUESTION_1_TEXT);
   await setAwaiting(env, Number(subscriber), { dateKey: today, step: 1 });
   await setDayState(env, today, { ...state, sent: true });
 }
@@ -167,5 +191,6 @@ async function sendWeeklyDigest(env: Env, chatIdOverride?: number): Promise<void
   const markdown = buildDigest(dateKeys, answers);
   const filename = `emotions-${dateKeys[0]}_${dateKeys[dateKeys.length - 1]}.md`;
 
-  await sendDocument(env, subscriber, filename, markdown, "Сводка эмоций за неделю 📊");
+  await sendCard(env, subscriber, "card-3", "Твой отчёт готов 📊");
+  await sendDocument(env, subscriber, filename, markdown, "Сводка эмоций за неделю");
 }

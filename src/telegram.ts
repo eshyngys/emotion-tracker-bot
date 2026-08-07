@@ -36,6 +36,50 @@ export async function sendDocument(
   }
 }
 
+interface SendPhotoResult {
+  result?: { photo?: Array<{ file_id: string; file_size?: number; width: number; height: number }> };
+}
+
+/** Sends a photo by URL (Telegram fetches it server-side) and returns the file_id for caching. */
+export async function sendPhotoByUrl(
+  env: Env,
+  chatId: number | string,
+  photoUrl: string,
+  caption?: string
+): Promise<string | null> {
+  const res = await fetch(apiUrl(env, "sendPhoto"), {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId, photo: photoUrl, caption }),
+  });
+  if (!res.ok) {
+    console.error("sendPhotoByUrl failed", res.status, await res.text());
+    return null;
+  }
+  const data = (await res.json()) as SendPhotoResult;
+  const sizes = data.result?.photo;
+  if (!sizes || sizes.length === 0) return null;
+  // Telegram returns several resized copies; the last one is the largest (closest to original).
+  return sizes[sizes.length - 1].file_id;
+}
+
+/** Sends a photo Telegram already has cached, by file_id — no re-upload/re-fetch involved. */
+export async function sendPhotoByFileId(
+  env: Env,
+  chatId: number | string,
+  fileId: string,
+  caption?: string
+): Promise<void> {
+  const res = await fetch(apiUrl(env, "sendPhoto"), {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId, photo: fileId, caption }),
+  });
+  if (!res.ok) {
+    console.error("sendPhotoByFileId failed", res.status, await res.text());
+  }
+}
+
 export async function setWebhook(env: Env, url: string): Promise<Response> {
   return fetch(apiUrl(env, "setWebhook"), {
     method: "POST",

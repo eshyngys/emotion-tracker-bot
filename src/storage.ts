@@ -53,3 +53,12 @@ export async function saveAnswer(
 export async function getAnswer(env: Env, dateKeyStr: string): Promise<Answer | null> {
   return env.EMOTIONS_KV.get<Answer>(`answer:${dateKeyStr}`, "json");
 }
+
+// Telegram file_ids for a given bot+file are effectively permanent, so these are cached with no TTL.
+export async function getCachedFileId(env: Env, assetKey: string): Promise<string | null> {
+  return env.EMOTIONS_KV.get(`file_id:${assetKey}`);
+}
+
+export async function setCachedFileId(env: Env, assetKey: string, fileId: string): Promise<void> {
+  await env.EMOTIONS_KV.put(`file_id:${assetKey}`, fileId);
+}
