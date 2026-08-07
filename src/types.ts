@@ -27,6 +27,11 @@ export interface AwaitingState {
   emotion?: string;
 }
 
+export interface UserRecord {
+  chatId: number;
+  joinedAt: string;
+}
+
 export interface TelegramUpdate {
   message?: {
     chat: { id: number };
