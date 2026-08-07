@@ -69,7 +69,18 @@ export default {
         return new Response("unauthorized", { status: 401 });
       }
       const update = (await request.json()) as TelegramUpdate;
-      ctx.waitUntil(handleUpdate(update, env));
+      ctx.waitUntil(
+        handleUpdate(update, env).catch(async (err) => {
+          // handleUpdate runs after we already answered Telegram with 200, so a crash here is
+          // otherwise completely invisible — surface it straight to the sender's chat instead.
+          console.error("handleUpdate crashed", err);
+          const chatId = update.message?.chat.id;
+          if (chatId) {
+            const detail = err instanceof Error ? `${err.message}\n${err.stack ?? ""}` : String(err);
+            await sendMessage(env, chatId, `⚠️ Ошибка обработки: ${detail}`).catch(() => {});
+          }
+        })
+      );
       return new Response("ok");
     }
 
