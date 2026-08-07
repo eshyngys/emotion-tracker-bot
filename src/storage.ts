@@ -26,6 +26,10 @@ export async function setDayState(env: Env, dateKeyStr: string, state: DayState)
   });
 }
 
+export async function clearDayState(env: Env, dateKeyStr: string): Promise<void> {
+  await env.EMOTIONS_KV.delete(`state:${dateKeyStr}`);
+}
+
 export async function setAwaiting(env: Env, chatId: number, state: AwaitingState): Promise<void> {
   await env.EMOTIONS_KV.put(`awaiting:${chatId}`, JSON.stringify(state), {
     expirationTtl: TTL_AWAITING,
@@ -52,6 +56,10 @@ export async function saveAnswer(
 
 export async function getAnswer(env: Env, dateKeyStr: string): Promise<Answer | null> {
   return env.EMOTIONS_KV.get<Answer>(`answer:${dateKeyStr}`, "json");
+}
+
+export async function clearAnswer(env: Env, dateKeyStr: string): Promise<void> {
+  await env.EMOTIONS_KV.delete(`answer:${dateKeyStr}`);
 }
 
 // Telegram file_ids for a given bot+file are effectively permanent, so these are cached with no TTL.

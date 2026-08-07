@@ -1,7 +1,9 @@
 import { dateKey, lastNDateKeys, localNow, randomTargetForToday } from "./dates";
 import { buildDigest } from "./digest";
 import {
+  clearAnswer,
   clearAwaiting,
+  clearDayState,
   clearSubscriberChatId,
   getAnswer,
   getAwaiting,
@@ -57,20 +59,6 @@ export default {
       return new Response("ok");
     }
 
-    // Temporary diagnostic — reveals presence/length only, never the actual secret values.
-    // Remove once the webhook/secret wiring is confirmed working.
-    if (url.pathname === "/debug/env-check") {
-      return new Response(
-        JSON.stringify({
-          hasToken: Boolean(env.TELEGRAM_BOT_TOKEN),
-          tokenLength: env.TELEGRAM_BOT_TOKEN?.length ?? 0,
-          hasWebhookSecret: Boolean(env.WEBHOOK_SECRET),
-          webhookSecretLength: env.WEBHOOK_SECRET?.length ?? 0,
-        }),
-        { headers: { "content-type": "application/json" } }
-      );
-    }
-
     if (url.pathname === "/webhook" && request.method === "POST") {
       const secret = request.headers.get("x-telegram-bot-api-secret-token");
       if (secret !== env.WEBHOOK_SECRET) {
@@ -95,6 +83,12 @@ export default {
     if (url.pathname === "/debug/preview-cards" && url.searchParams.get("secret") === env.WEBHOOK_SECRET) {
       await previewAllCards(env);
       return new Response("triggered cards preview");
+    }
+    // Clears today's day-state/awaiting/answer so the next cron tick picks a fresh random
+    // time and sends today's real question — useful right after debug/send-now test runs.
+    if (url.pathname === "/debug/reset-today" && url.searchParams.get("secret") === env.WEBHOOK_SECRET) {
+      await resetToday(env);
+      return new Response("today reset");
     }
 
     return new Response("not found", { status: 404 });
@@ -193,6 +187,17 @@ async function previewAllCards(env: Env): Promise<void> {
   await sendCard(env, subscriber, "card-1", QUESTION_1_TEXT);
   await sendCard(env, subscriber, "card-2", QUESTION_2_TEXT);
   await sendCard(env, subscriber, "card-3", "Твой отчёт готов 📊");
+}
+
+async function resetToday(env: Env): Promise<void> {
+  const offset = Number(env.TZ_OFFSET_MINUTES);
+  const today = dateKey(localNow(offset));
+  await clearDayState(env, today);
+  await clearAnswer(env, today);
+  const subscriber = await getSubscriberChatId(env);
+  if (subscriber) {
+    await clearAwaiting(env, Number(subscriber));
+  }
 }
 
 async function sendWeeklyDigest(env: Env, chatIdOverride?: number): Promise<void> {
