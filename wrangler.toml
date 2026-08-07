@@ -11,7 +11,7 @@ crons = ["*/10 2-16 * * *", "0 15 * * 0"]
 
 [[kv_namespaces]]
 binding = "EMOTIONS_KV"
-id = "REPLACE_WITH_KV_NAMESPACE_ID"
+id = "52b85a98704a43dc825ec4a7b48081ae"
 
 [vars]
 # Asia/Almaty is UTC+5 year-round (no DST)
