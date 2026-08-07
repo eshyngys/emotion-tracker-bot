@@ -1,4 +1,4 @@
-import type { Answer, DayState, Env } from "./types";
+import type { Answer, AwaitingState, DayState, Env } from "./types";
 
 const TTL_STATE = 60 * 60 * 24 * 3; // 3 days
 const TTL_AWAITING = 60 * 60 * 24 * 3; // 3 days
@@ -26,12 +26,14 @@ export async function setDayState(env: Env, dateKeyStr: string, state: DayState)
   });
 }
 
-export async function setAwaiting(env: Env, chatId: number, dateKeyStr: string): Promise<void> {
-  await env.EMOTIONS_KV.put(`awaiting:${chatId}`, dateKeyStr, { expirationTtl: TTL_AWAITING });
+export async function setAwaiting(env: Env, chatId: number, state: AwaitingState): Promise<void> {
+  await env.EMOTIONS_KV.put(`awaiting:${chatId}`, JSON.stringify(state), {
+    expirationTtl: TTL_AWAITING,
+  });
 }
 
-export async function getAwaiting(env: Env, chatId: number): Promise<string | null> {
-  return env.EMOTIONS_KV.get(`awaiting:${chatId}`);
+export async function getAwaiting(env: Env, chatId: number): Promise<AwaitingState | null> {
+  return env.EMOTIONS_KV.get<AwaitingState>(`awaiting:${chatId}`, "json");
 }
 
 export async function clearAwaiting(env: Env, chatId: number): Promise<void> {

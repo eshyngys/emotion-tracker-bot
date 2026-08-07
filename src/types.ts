@@ -16,9 +16,15 @@ export interface DayState {
 export interface Answer {
   emotion: string;
   reason: string;
-  /** raw text the user sent, kept as a fallback in case parsing was imperfect */
-  raw: string;
   answeredAt: string;
+}
+
+/** Tracks where the user is in today's two-step question flow. */
+export interface AwaitingState {
+  dateKey: string;
+  step: 1 | 2;
+  /** set once step 1 is answered, carried along until step 2 completes the answer */
+  emotion?: string;
 }
 
 export interface TelegramUpdate {

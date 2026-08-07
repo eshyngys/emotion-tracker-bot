@@ -1,5 +1,5 @@
 import { dateKey, lastNDateKeys, localNow, randomTargetForToday } from "./dates";
-import { buildDigest, parseAnswer } from "./digest";
+import { buildDigest } from "./digest";
 import {
   clearAwaiting,
   clearSubscriberChatId,
@@ -15,16 +15,14 @@ import {
 import { sendDocument, sendMessage } from "./telegram";
 import type { Answer, Env, TelegramUpdate } from "./types";
 
-const QUESTION_TEXT =
-  "👋 Как ты сейчас?\n\n" +
-  "1️⃣ Какую эмоцию ты сейчас испытываешь? (коротко)\n" +
-  "2️⃣ Почему ты сейчас испытываешь такую эмоцию? (коротко)\n\n" +
-  "Ответь одним сообщением — эмоция на первой строке, причина на второй.";
+const QUESTION_1_TEXT = "👋 Как ты сейчас?\n\n1️⃣ Какую эмоцию ты сейчас испытываешь? (коротко)";
+const QUESTION_2_TEXT = "2️⃣ А почему ты сейчас испытываешь такую эмоцию? (коротко)";
 
 const WELCOME_TEXT =
-  "Привет! Раз в день, в случайное время примерно с 7:00 до 22:00, я буду спрашивать про твои эмоции. " +
-  "Отвечай коротко в двух строках: эмоция и почему. По воскресеньям вечером пришлю markdown-файл со сводкой " +
-  "за неделю — его можно скинуть Claude и обсудить закономерности.\n\n" +
+  "Привет!\n\n" +
+  "Раз в день, в случайное время примерно с 7:00 до 22:00, я буду спрашивать про твои эмоции.\n\n" +
+  "Вопросы будут по очереди: сначала эмоция, после твоего ответа — почему. Отвечай коротко, своими словами.\n\n" +
+  "По воскресеньям вечером пришлю markdown-файл со сводкой за неделю — его можно скинуть Claude и обсудить закономерности.\n\n" +
   "Команды:\n/report — прислать сводку за последние 7 дней прямо сейчас\n/stop — отписаться";
 
 export default {
@@ -105,11 +103,21 @@ async function handleUpdate(update: TelegramUpdate, env: Env): Promise<void> {
     return;
   }
 
-  const awaitingDate = await getAwaiting(env, chatId);
-  if (awaitingDate) {
-    const { emotion, reason } = parseAnswer(text);
-    const answer: Answer = { emotion, reason, raw: text, answeredAt: new Date().toISOString() };
-    await saveAnswer(env, awaitingDate, answer);
+  const awaiting = await getAwaiting(env, chatId);
+  if (awaiting?.step === 1) {
+    // Got the emotion — now ask why, and remember the emotion for step 2.
+    await setAwaiting(env, chatId, { dateKey: awaiting.dateKey, step: 2, emotion: text });
+    await sendMessage(env, chatId, QUESTION_2_TEXT);
+    return;
+  }
+
+  if (awaiting?.step === 2) {
+    const answer: Answer = {
+      emotion: awaiting.emotion ?? "",
+      reason: text,
+      answeredAt: new Date().toISOString(),
+    };
+    await saveAnswer(env, awaiting.dateKey, answer);
     await clearAwaiting(env, chatId);
     await sendMessage(env, chatId, "Записал 📝 Спасибо!");
     return;
@@ -144,8 +152,8 @@ async function maybeSendDailyQuestion(env: Env, force: boolean): Promise<void> {
   const subscriber = await getSubscriberChatId(env);
   if (!subscriber) return; // nobody has /start'ed the bot yet
 
-  await sendMessage(env, subscriber, QUESTION_TEXT);
-  await setAwaiting(env, Number(subscriber), today);
+  await sendMessage(env, subscriber, QUESTION_1_TEXT);
+  await setAwaiting(env, Number(subscriber), { dateKey: today, step: 1 });
   await setDayState(env, today, { ...state, sent: true });
 }
 
