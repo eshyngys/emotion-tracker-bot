@@ -74,25 +74,43 @@ export default {
     }
 
     // Debug/dev routes always target the admin's own chat — never the whole user base.
+    // All of them honestly report "no admin" instead of pretending to have done something.
     if (url.pathname === "/debug/send-now" && url.searchParams.get("secret") === env.WEBHOOK_SECRET) {
       const admin = await getAdminChatId(env);
-      if (admin) await maybeSendDailyQuestionForUser(env, admin, true);
+      if (!admin) return new Response("no admin set yet", { status: 409 });
+      await maybeSendDailyQuestionForUser(env, admin, true);
       return new Response("triggered send check");
     }
     if (url.pathname === "/debug/digest" && url.searchParams.get("secret") === env.WEBHOOK_SECRET) {
       const admin = await getAdminChatId(env);
-      if (admin) await sendWeeklyDigestForUser(env, admin);
+      if (!admin) return new Response("no admin set yet", { status: 409 });
+      await sendWeeklyDigestForUser(env, admin);
       return new Response("triggered digest");
     }
     if (url.pathname === "/debug/preview-cards" && url.searchParams.get("secret") === env.WEBHOOK_SECRET) {
       const admin = await getAdminChatId(env);
-      if (admin) await previewAllCards(env, admin);
+      if (!admin) return new Response("no admin set yet", { status: 409 });
+      await previewAllCards(env, admin);
       return new Response("triggered cards preview");
     }
     if (url.pathname === "/debug/reset-today" && url.searchParams.get("secret") === env.WEBHOOK_SECRET) {
       const admin = await getAdminChatId(env);
-      if (admin) await resetToday(env, admin);
+      if (!admin) return new Response("no admin set yet", { status: 409 });
+      await resetToday(env, admin);
       return new Response("today reset");
+    }
+    // Read-only inspector: current admin, subscriber count and their chat ids. No secrets exposed.
+    if (url.pathname === "/debug/state" && url.searchParams.get("secret") === env.WEBHOOK_SECRET) {
+      const admin = await getAdminChatId(env);
+      const users = await listUsers(env);
+      return new Response(
+        JSON.stringify({
+          adminChatId: admin,
+          userCount: users.length,
+          users: users.map((u) => ({ chatId: u.chatId, joinedAt: u.joinedAt })),
+        }),
+        { headers: { "content-type": "application/json" } }
+      );
     }
 
     return new Response("not found", { status: 404 });
