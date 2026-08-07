@@ -14,6 +14,7 @@ import {
   listUsers,
   removeUser,
   saveAnswer,
+  setAdminChatId,
   setAwaiting,
   setCachedFileId,
   setDayState,
@@ -122,6 +123,15 @@ export default {
         }),
         { headers: { "content-type": "application/json" } }
       );
+    }
+
+    // One-time admin reassignment, e.g. when the wrong account got migrated into the role.
+    // Doesn't touch the previous admin's subscription — they stay a regular user.
+    if (url.pathname === "/debug/set-admin" && url.searchParams.get("secret") === env.WEBHOOK_SECRET) {
+      const chatIdParam = url.searchParams.get("chatId");
+      if (!chatIdParam) return new Response("missing chatId query param", { status: 400 });
+      await setAdminChatId(env, Number(chatIdParam));
+      return new Response(`admin set to ${chatIdParam}`);
     }
 
     return new Response("not found", { status: 404 });
