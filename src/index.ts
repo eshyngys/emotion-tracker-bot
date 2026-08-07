@@ -90,6 +90,12 @@ export default {
       await sendWeeklyDigest(env);
       return new Response("triggered digest");
     }
+    // Sends all three cards back-to-back with their real captions, bypassing the awaiting-state
+    // flow — pure visual QA, doesn't touch today's question state or saved answers.
+    if (url.pathname === "/debug/preview-cards" && url.searchParams.get("secret") === env.WEBHOOK_SECRET) {
+      await previewAllCards(env);
+      return new Response("triggered cards preview");
+    }
 
     return new Response("not found", { status: 404 });
   },
@@ -179,6 +185,14 @@ async function maybeSendDailyQuestion(env: Env, force: boolean): Promise<void> {
   await sendCard(env, subscriber, "card-1", QUESTION_1_TEXT);
   await setAwaiting(env, Number(subscriber), { dateKey: today, step: 1 });
   await setDayState(env, today, { ...state, sent: true });
+}
+
+async function previewAllCards(env: Env): Promise<void> {
+  const subscriber = await getSubscriberChatId(env);
+  if (!subscriber) return;
+  await sendCard(env, subscriber, "card-1", QUESTION_1_TEXT);
+  await sendCard(env, subscriber, "card-2", QUESTION_2_TEXT);
+  await sendCard(env, subscriber, "card-3", "Твой отчёт готов 📊");
 }
 
 async function sendWeeklyDigest(env: Env, chatIdOverride?: number): Promise<void> {
