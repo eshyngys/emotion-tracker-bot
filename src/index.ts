@@ -73,7 +73,7 @@ export default {
   },
 
   async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    if (event.cron === "0 15 * * 0") {
+    if (event.cron === "0 15 * * 7") {
       ctx.waitUntil(sendWeeklyDigest(env));
     } else {
       ctx.waitUntil(maybeSendDailyQuestion(env, false));
